@@ -17,7 +17,9 @@ import {
 } from "./types";
 
 // Use environment variable for production API URL, fallback to relative path (proxy) for dev
-export const BASE_URL = import.meta.env.VITE_API_URL || "";
+// Use environment variable for production API URL, fallback to relative path (proxy) for dev
+import { BASE_URL } from "../../appConfig";
+export { BASE_URL };
 axios.defaults.baseURL = BASE_URL;
 axios.defaults.withCredentials = true;
 

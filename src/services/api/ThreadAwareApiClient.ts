@@ -12,7 +12,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { SessionManager } from '../SessionManager';
 
-import { BASE_URL } from '../../components/AIRecommender/api';
+import { BASE_URL } from '../../appConfig';
 
 export interface ThreadContext {
   mainThreadId: string;
@@ -29,12 +29,12 @@ export interface ApiRequestOptions extends AxiosRequestConfig {
 
 export class ThreadAwareApiClient {
   private axiosInstance: AxiosInstance;
-  private sessionManager: SessionManager;
+
   private baseURL: string;
 
   constructor(baseURL: string = BASE_URL) {
     this.baseURL = baseURL;
-    this.sessionManager = SessionManager.getInstance();
+
 
     this.axiosInstance = axios.create({
       baseURL,
@@ -65,7 +65,7 @@ export class ThreadAwareApiClient {
    * Returns all relevant thread IDs from current session
    */
   private getThreadContext(): ThreadContext | null {
-    const session = this.sessionManager.getCurrentSession();
+    const session = SessionManager.getInstance().getCurrentSession();
 
     if (!session) {
       console.warn('[API] No active session - thread context unavailable');
@@ -140,7 +140,7 @@ export class ThreadAwareApiClient {
    */
   async runInstrumentIdentifier(requirements: string): Promise<any> {
     // Create sub-thread for this workflow
-    const subThread = this.sessionManager.createSubThread('instrument_identifier');
+    const subThread = SessionManager.getInstance().createSubThread('instrument_identifier');
 
     if (!subThread) {
       throw new Error('Failed to create sub-thread for instrument_identifier');
@@ -156,7 +156,7 @@ export class ThreadAwareApiClient {
       const items = response.data.data.response_data.items;
 
       items.forEach((item: any) => {
-        this.sessionManager.addItemThreadToSubThread(
+        SessionManager.getInstance().addItemThreadToSubThread(
           subThread.subThreadId,
           item.number,
           item.name,
@@ -174,7 +174,7 @@ export class ThreadAwareApiClient {
    */
   async runSolution(solutionDescription: string): Promise<any> {
     // Create sub-thread for this workflow
-    const subThread = this.sessionManager.createSubThread('solution');
+    const subThread = SessionManager.getInstance().createSubThread('solution');
 
     if (!subThread) {
       throw new Error('Failed to create sub-thread for solution');
@@ -190,7 +190,7 @@ export class ThreadAwareApiClient {
       const items = response.data.data.response_data.items;
 
       items.forEach((item: any) => {
-        this.sessionManager.addItemThreadToSubThread(
+        SessionManager.getInstance().addItemThreadToSubThread(
           subThread.subThreadId,
           item.number,
           item.name,
@@ -213,7 +213,7 @@ export class ThreadAwareApiClient {
     requirements: any
   ): Promise<any> {
     // Get the item thread ID from parent
-    const itemThreads = this.sessionManager.getItemThreadsInSubThread(parentWorkflowThreadId);
+    const itemThreads = SessionManager.getInstance().getItemThreadsInSubThread(parentWorkflowThreadId);
     const itemThreadId = itemThreads?.get(itemNumber);
 
     if (!itemThreadId) {
@@ -221,7 +221,7 @@ export class ThreadAwareApiClient {
     }
 
     // Create a new product_search sub-thread
-    const productSearchSubThread = this.sessionManager.createProductSearchSubThread(
+    const productSearchSubThread = SessionManager.getInstance().createProductSearchSubThread(
       parentWorkflowThreadId,
       itemNumber,
       itemThreadId
@@ -257,7 +257,7 @@ export class ThreadAwareApiClient {
     selectedProduct: any
   ): Promise<any> {
     // Set this as the active sub-thread
-    this.sessionManager.setActiveSubThread(productSearchSubThreadId);
+    SessionManager.getInstance().setActiveSubThread(productSearchSubThreadId);
 
     const response = await this.axiosInstance.post('/api/agentic/select-product', {
       item_number: itemNumber,
@@ -273,7 +273,7 @@ export class ThreadAwareApiClient {
    * Retrieve the complete thread hierarchy
    */
   async getThreadTree(): Promise<any> {
-    const session = this.sessionManager.getCurrentSession();
+    const session = SessionManager.getInstance().getCurrentSession();
 
     if (!session) {
       throw new Error('No active session');
@@ -345,7 +345,21 @@ export class ThreadAwareApiClient {
   }
 }
 
-// Create singleton instance
-export const apiClient = new ThreadAwareApiClient();
+// Lazy singleton getter to avoid circular dependency issues
+let _apiClient: ThreadAwareApiClient | null = null;
 
-export default apiClient;
+export const getApiClient = (): ThreadAwareApiClient => {
+  if (!_apiClient) {
+    _apiClient = new ThreadAwareApiClient();
+  }
+  return _apiClient;
+};
+
+// For backward compatibility
+export const apiClient = {
+  get instance(): ThreadAwareApiClient {
+    return getApiClient();
+  }
+};
+
+export default ThreadAwareApiClient;

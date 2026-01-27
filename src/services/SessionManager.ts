@@ -10,7 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { SessionOrchestrationService, sessionOrchestrationService } from './SessionOrchestrationService';
+import { SessionOrchestrationService, getSessionOrchestrationService } from './SessionOrchestrationService';
 
 export interface SubThread {
   subThreadId: string;
@@ -56,7 +56,8 @@ export class SessionManager {
   private sessionCreationPromise: Promise<UserSession> | null = null; // Track in-flight creation
 
   private constructor() {
-    this.orchestrationService = sessionOrchestrationService;
+    // Use getter to get the service lazily - avoids circular dependency
+    this.orchestrationService = getSessionOrchestrationService();
     this.loadSessionsFromStorage();
   }
 
@@ -707,8 +708,8 @@ export class SessionManager {
   }
 }
 
-// Re-export orchestration service for convenience
-export { sessionOrchestrationService };
+// Re-export orchestration service getter for convenience
+export { getSessionOrchestrationService };
 
 // Export singleton getter for backward compatibility
 export const getSessionManager = (): SessionManager => {

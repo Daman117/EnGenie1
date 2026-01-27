@@ -24,6 +24,11 @@ export interface ThreadContextType {
   createSubThread: (
     workflowType: 'instrument_identifier' | 'solution' | 'product_search' | 'grounded_chat'
   ) => SubThread | null;
+  createProductSearchSubThread: (
+    parentSubThreadId: string,
+    itemNumber: number,
+    itemThreadId: string
+  ) => SubThread | null;
   addItemThread: (
     subThreadId: string,
     itemNumber: number,
@@ -118,6 +123,29 @@ export const ThreadProvider: React.FC<ThreadProviderProps> = ({
       workflowType: 'instrument_identifier' | 'solution' | 'product_search' | 'grounded_chat'
     ): SubThread | null => {
       const subThread = sessionManager.createSubThread(workflowType);
+      updateState();
+
+      if (subThread && onSubThreadCreated) {
+        onSubThreadCreated(subThread);
+      }
+
+      return subThread;
+    },
+    [sessionManager, updateState, onSubThreadCreated]
+  );
+
+  // Create product search sub-thread
+  const handleCreateProductSearchSubThread = useCallback(
+    (
+      parentSubThreadId: string,
+      itemNumber: number,
+      itemThreadId: string
+    ): SubThread | null => {
+      const subThread = sessionManager.createProductSearchSubThread(
+        parentSubThreadId,
+        itemNumber,
+        itemThreadId
+      );
       updateState();
 
       if (subThread && onSubThreadCreated) {
@@ -233,6 +261,7 @@ export const ThreadProvider: React.FC<ThreadProviderProps> = ({
     createSession: handleCreateSession,
     endSession: handleEndSession,
     createSubThread: handleCreateSubThread,
+    createProductSearchSubThread: handleCreateProductSearchSubThread,
     addItemThread: handleAddItemThread,
     setActiveSubThread: handleSetActiveSubThread,
     closeSubThread: handleCloseSubThread,

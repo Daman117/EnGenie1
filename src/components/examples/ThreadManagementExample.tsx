@@ -16,8 +16,8 @@ import {
   useSessionMetadata,
   useActiveSubThread,
   useThreadIds,
-} from '../contexts/ThreadContext';
-import { apiClient } from '../../services/api/ThreadAwareApiClient';
+} from '../../contexts/ThreadContext';
+import { getApiClient } from '../../services/api/ThreadAwareApiClient';
 
 // ============================================================================
 // EXAMPLE 1: Login Component
@@ -111,7 +111,7 @@ export const InstrumentIdentifierExample: React.FC = () => {
       console.log('Sub-thread created:', subThread.subThreadId);
 
       // 2. Call API (thread context auto-injected)
-      const response = await apiClient.runInstrumentIdentifier(requirements);
+      const response = await getApiClient().runInstrumentIdentifier(requirements);
 
       // 3. Process response
       const identifiedItems = response.data.response_data.items;
@@ -238,7 +238,7 @@ export const ProductSearchExample: React.FC<ProductSearchProps> = ({
       console.log('Product search thread created:', searchThread.subThreadId);
 
       // 2. Call API (will use new product_search sub-thread)
-      const response = await apiClient.searchProducts(
+      const response = await getApiClient().searchProducts(
         parentWorkflowThreadId,
         itemNumber,
         itemName,
@@ -259,7 +259,7 @@ export const ProductSearchExample: React.FC<ProductSearchProps> = ({
 
     try {
       // Product selection creates separate API call
-      const response = await apiClient.selectProduct(
+      const response = await getApiClient().selectProduct(
         subThreadId || '',
         itemNumber,
         product

@@ -12,6 +12,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import { BASE_URL } from '../appConfig';
 
 export interface InstanceByTriggerRequest {
     session_id: string;
@@ -82,7 +83,7 @@ export class InstanceOrchestrationService {
     private static instance: InstanceOrchestrationService;
     private axiosInstance: AxiosInstance;
 
-    private constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:5000') {
+    private constructor(baseURL: string = BASE_URL) {
         this.axiosInstance = axios.create({
             baseURL,
             timeout: 10000,
@@ -237,7 +238,21 @@ export class InstanceOrchestrationService {
     }
 }
 
-// Export singleton instance
-export const instanceOrchestrationService = InstanceOrchestrationService.getInstance();
+// Lazy singleton getter to avoid circular dependency issues
+let _instanceOrchestrationService: InstanceOrchestrationService | null = null;
+
+export const getInstanceOrchestrationService = (): InstanceOrchestrationService => {
+    if (!_instanceOrchestrationService) {
+        _instanceOrchestrationService = InstanceOrchestrationService.getInstance();
+    }
+    return _instanceOrchestrationService;
+};
+
+// For backward compatibility
+export const instanceOrchestrationService = {
+    get instance(): InstanceOrchestrationService {
+        return getInstanceOrchestrationService();
+    }
+};
 
 export default InstanceOrchestrationService;

@@ -12,6 +12,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import { BASE_URL } from '../appConfig';
 
 export interface StartSessionRequest {
     user_id: string;
@@ -87,7 +88,7 @@ export class SessionOrchestrationService {
     private heartbeatIntervalMs: number = 5 * 60 * 1000; // 5 minutes
     private currentMainThreadId: string | null = null;
 
-    private constructor(baseURL: string = import.meta.env.VITE_API_URL || '') {
+    private constructor(baseURL: string = BASE_URL) {
         this.axiosInstance = axios.create({
             baseURL,
             timeout: 10000,
@@ -369,7 +370,21 @@ export class SessionOrchestrationService {
     }
 }
 
-// Export singleton instance
-export const sessionOrchestrationService = SessionOrchestrationService.getInstance();
+// Lazy singleton getter to avoid circular dependency issues
+let _sessionOrchestrationService: SessionOrchestrationService | null = null;
+
+export const getSessionOrchestrationService = (): SessionOrchestrationService => {
+    if (!_sessionOrchestrationService) {
+        _sessionOrchestrationService = SessionOrchestrationService.getInstance();
+    }
+    return _sessionOrchestrationService;
+};
+
+// For backward compatibility - but prefer using getSessionOrchestrationService()
+export const sessionOrchestrationService = {
+    get instance(): SessionOrchestrationService {
+        return getSessionOrchestrationService();
+    }
+};
 
 export default SessionOrchestrationService;
