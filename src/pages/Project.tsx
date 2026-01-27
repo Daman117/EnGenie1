@@ -2346,240 +2346,253 @@ const Project = () => {
                                 )}
                             </div>
 
+                            {/* Separator Line between Chat and Right Panel */}
+                            {showResults && !isRightDocked && (
+                                <div
+                                    className="w-1.5 h-screen bg-border hover:bg-[#5FB3E6] transition-colors duration-500 ease-in-out flex-shrink-0"
+                                    style={{ zIndex: 20 }}
+                                />
+                            )}
+
                             {/* Right Panel - Results */}
                             {showResults && (
                                 <div className={`
-                                    h-screen border-l border-slate-300 dark:border-slate-600 bg-gradient-to-br from-[#F5FAFC]/40 to-[#EAF6FB]/40 
-                                    overflow-y-auto custom-no-scrollbar pt-36
+                                    h-[calc(100vh-8rem)] mt-32 mr-1
+                                    overflow-y-auto custom-no-scrollbar
                                     transition-all duration-500 ease-in-out origin-right
-                                    ${!isRightDocked ? 'w-1/2 opacity-100' : 'w-0 opacity-0 border-l-0 overflow-hidden'}
+                                    ${!isRightDocked ? 'w-[47%] opacity-100' : 'w-0 opacity-0 overflow-hidden'}
                                 `}>
-                                    <div className="w-full min-w-[45vw] p-6">
-                                        {/* Results Display */}
-                                        <div className="space-y-6">
-                                            {/* Instruments Section */}
-                                            {instruments.length > 0 && (
-                                                <>
-                                                    <div className="mb-6">
-                                                        <h2 className="text-2xl font-bold">
-                                                            Instruments ({instruments.length})
+                                    <div className="h-fit ml-4 mb-2
+                                        bg-white/60 dark:bg-slate-900/60 
+                                        backdrop-blur-md border-2 border-[#45A4DE] shadow-xl rounded-2xl
+                                        p-6">
+                                        <div className="w-full">
+                                            {/* Results Display */}
+                                            <div className="space-y-6">
+                                                {/* Instruments Section */}
+                                                {instruments.length > 0 && (
+                                                    <>
+                                                        <div className="mb-6">
+                                                            <h2 className="text-2xl font-bold">
+                                                                Instruments ({instruments.length})
+                                                            </h2>
+                                                        </div>
+
+                                                        <div className="space-y-4">
+                                                            {instruments.map((instrument, index) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className="rounded-xl bg-gradient-to-br from-[#F5FAFC]/90 to-[#EAF6FB]/90 dark:from-slate-900/90 dark:to-slate-900/50 backdrop-blur-2xl border border-white/20 dark:border-slate-700/30 shadow-2xl transition-all duration-300 ease-in-out hover:scale-[1.01] p-8 space-y-6"
+                                                                >
+                                                                    {/* Category (primary) and Product Name (secondary) - smart category for accessories */}
+                                                                    <div className="flex items-start justify-between">
+                                                                        <div className="space-y-1">
+                                                                            <h3 className="text-xl font-semibold">
+                                                                                {index + 1}. {(() => {
+                                                                                    // If category is generic like "Accessories", extract the type from productName
+                                                                                    const cat = instrument.category || '';
+                                                                                    const name = instrument.productName || '';
+                                                                                    const isGeneric = cat.toLowerCase() === 'accessories' || cat.toLowerCase() === 'accessory';
+                                                                                    if (isGeneric && name) {
+                                                                                        // Extract first part before "for" (e.g., "Thermowell for X" -> "Thermowell")
+                                                                                        const parts = name.split(' for ');
+                                                                                        return parts[0] || name;
+                                                                                    }
+                                                                                    return cat || name;
+                                                                                })()}{instrument.quantity ? ` (${instrument.quantity})` : ''}
+                                                                            </h3>
+                                                                            <p className="text-muted-foreground">
+                                                                                {instrument.productName}
+                                                                            </p>
+                                                                        </div>
+                                                                        <Button
+                                                                            onClick={() => handleRun(instrument, index)}
+                                                                            className="rounded-xl w-10 h-10 p-0 flex items-center justify-center bg-primary/40 hover:bg-primary text-primary hover:text-white transition-all duration-300 hover:scale-110"
+                                                                            variant="ghost"
+                                                                        >
+                                                                            <Play className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    {/* Generic Product Type Image */}
+                                                                    {genericImages[instrument.productName] && (
+                                                                        <div className="flex justify-center my-4 rounded-lg overflow-hidden">
+                                                                            <img
+                                                                                src={genericImages[instrument.productName]}
+                                                                                alt={`Generic ${instrument.category}`}
+                                                                                className="w-48 h-48 object-contain rounded-lg mix-blend-multiply"
+                                                                                onError={(e) => {
+                                                                                    e.currentTarget.style.display = 'none';
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Specifications */}
+                                                                    {Object.keys(instrument.specifications).length > 0 && (
+                                                                        <div className="space-y-2">
+                                                                            <h4 className="font-medium text-sm text-muted-foreground">
+                                                                                Specifications:
+                                                                            </h4>
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                                {Object.entries(instrument.specifications).map(([key, value]) => {
+                                                                                    const prettyKey = prettifyKey(key);
+                                                                                    // Check for description in fieldDescriptions (try multiple key formats)
+                                                                                    const description =
+                                                                                        fieldDescriptions[key] ||
+                                                                                        fieldDescriptions[prettyKey] ||
+                                                                                        fieldDescriptions[key.toLowerCase()] ||
+                                                                                        fieldDescriptions[key.replace(/_/g, ' ')] ||
+                                                                                        null;
+
+                                                                                    return (
+                                                                                        <div key={key} className="text-sm group break-words">
+                                                                                            {description ? (
+                                                                                                <Tooltip>
+                                                                                                    <TooltipTrigger asChild>
+                                                                                                        <span className="font-medium cursor-help border-b border-dotted border-muted-foreground/50 hover:text-primary transition-colors">
+                                                                                                            {prettyKey}:
+                                                                                                        </span>
+                                                                                                    </TooltipTrigger>
+                                                                                                    <TooltipContent side="top" className="max-w-[300px] p-3 text-sm bg-popover/95 backdrop-blur-md border border-border shadow-xl">
+                                                                                                        <p>{description}</p>
+                                                                                                    </TooltipContent>
+                                                                                                </Tooltip>
+                                                                                            ) : (
+                                                                                                <span className="font-medium">{prettyKey}:</span>
+                                                                                            )}{' '}
+                                                                                            <span className="text-muted-foreground">{value}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Sample Input Preview */}
+                                                                    <div className="pt-3 border-t">
+                                                                        <p className="text-xs text-muted-foreground mb-2">Sample Input:</p>
+                                                                        <p className="text-sm bg-muted p-3 rounded-lg font-mono">
+                                                                            {instrument.sampleInput}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                )}
+
+                                                {/* Accessories Section */}
+                                                {accessories.length > 0 && (
+                                                    <>
+                                                        <h2 className="text-2xl font-bold mt-8">
+                                                            Accessories ({accessories.length})
                                                         </h2>
-                                                    </div>
 
-                                                    <div className="space-y-4">
-                                                        {instruments.map((instrument, index) => (
-                                                            <div
-                                                                key={index}
-                                                                className="rounded-xl bg-gradient-to-br from-[#F5FAFC]/90 to-[#EAF6FB]/90 dark:from-slate-900/90 dark:to-slate-900/50 backdrop-blur-2xl border border-white/20 dark:border-slate-700/30 shadow-2xl transition-all duration-300 ease-in-out hover:scale-[1.01] p-8 space-y-6"
-                                                            >
-                                                                {/* Category (primary) and Product Name (secondary) - smart category for accessories */}
-                                                                <div className="flex items-start justify-between">
-                                                                    <div className="space-y-1">
-                                                                        <h3 className="text-xl font-semibold">
-                                                                            {index + 1}. {(() => {
-                                                                                // If category is generic like "Accessories", extract the type from productName
-                                                                                const cat = instrument.category || '';
-                                                                                const name = instrument.productName || '';
-                                                                                const isGeneric = cat.toLowerCase() === 'accessories' || cat.toLowerCase() === 'accessory';
-                                                                                if (isGeneric && name) {
-                                                                                    // Extract first part before "for" (e.g., "Thermowell for X" -> "Thermowell")
-                                                                                    const parts = name.split(' for ');
-                                                                                    return parts[0] || name;
-                                                                                }
-                                                                                return cat || name;
-                                                                            })()}{instrument.quantity ? ` (${instrument.quantity})` : ''}
-                                                                        </h3>
-                                                                        <p className="text-muted-foreground">
-                                                                            {instrument.productName}
+                                                        <div className="space-y-4 mt-4">
+                                                            {accessories.map((accessory, index) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className="rounded-xl bg-gradient-to-br from-[#F5FAFC]/90 to-[#EAF6FB]/90 dark:from-slate-900/90 dark:to-slate-900/50 backdrop-blur-2xl border border-white/20 dark:border-slate-700/30 shadow-2xl transition-all duration-300 ease-in-out hover:scale-[1.02] p-6 space-y-4"
+                                                                >
+                                                                    {/* Accessory Category (primary) and Name (secondary) - extract type from name if category is generic */}
+                                                                    <div className="flex items-start justify-between">
+                                                                        <div className="space-y-1">
+                                                                            <h3 className="text-xl font-semibold">
+                                                                                {index + 1}. {(() => {
+                                                                                    // If category is generic like "Accessories", extract the type from accessoryName
+                                                                                    const cat = accessory.category || '';
+                                                                                    const name = accessory.accessoryName || '';
+                                                                                    const isGeneric = cat.toLowerCase() === 'accessories' || cat.toLowerCase() === 'accessory';
+                                                                                    if (isGeneric && name) {
+                                                                                        // Extract first part before "for" (e.g., "Thermowell for X" -> "Thermowell")
+                                                                                        const parts = name.split(' for ');
+                                                                                        return parts[0] || name;
+                                                                                    }
+                                                                                    return cat || name;
+                                                                                })()}{accessory.quantity ? ` (${accessory.quantity})` : ''}
+                                                                            </h3>
+                                                                            <p className="text-muted-foreground">
+                                                                                {accessory.accessoryName}
+                                                                            </p>
+                                                                        </div>
+                                                                        <Button
+                                                                            onClick={() => handleRunAccessory(accessory, index)}
+                                                                            className="rounded-xl w-10 h-10 p-0 flex items-center justify-center bg-primary/40 hover:bg-primary text-primary hover:text-white transition-all duration-300 hover:scale-110"
+                                                                            variant="ghost"
+                                                                        >
+                                                                            <Play className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    {/* Generic Product Type Image */}
+                                                                    {genericImages[accessory.accessoryName] && (
+                                                                        <div className="flex justify-center my-4 rounded-lg overflow-hidden">
+                                                                            <img
+                                                                                src={genericImages[accessory.accessoryName]}
+                                                                                alt={`Generic ${accessory.category}`}
+                                                                                className="w-48 h-48 object-contain rounded-lg mix-blend-multiply"
+                                                                                onError={(e) => {
+                                                                                    e.currentTarget.style.display = 'none';
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Specifications */}
+                                                                    {Object.keys(accessory.specifications).length > 0 && (
+                                                                        <div className="space-y-2">
+                                                                            <h4 className="font-medium text-sm text-muted-foreground">
+                                                                                Specifications:
+                                                                            </h4>
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                                {Object.entries(accessory.specifications).map(([key, value]) => {
+                                                                                    const prettyKey = prettifyKey(key);
+                                                                                    // Check for description in fieldDescriptions
+                                                                                    const description =
+                                                                                        fieldDescriptions[key] ||
+                                                                                        fieldDescriptions[prettyKey] ||
+                                                                                        fieldDescriptions[key.toLowerCase()] ||
+                                                                                        fieldDescriptions[key.replace(/_/g, ' ')] ||
+                                                                                        null;
+
+                                                                                    return (
+                                                                                        <div key={key} className="text-sm group break-words">
+                                                                                            {description ? (
+                                                                                                <Tooltip>
+                                                                                                    <TooltipTrigger asChild>
+                                                                                                        <span className="font-medium cursor-help border-b border-dotted border-muted-foreground/50 hover:text-primary transition-colors">
+                                                                                                            {prettyKey}:
+                                                                                                        </span>
+                                                                                                    </TooltipTrigger>
+                                                                                                    <TooltipContent side="top" className="max-w-[300px] p-3 text-sm bg-popover/95 backdrop-blur-md border border-border shadow-xl">
+                                                                                                        <p>{description}</p>
+                                                                                                    </TooltipContent>
+                                                                                                </Tooltip>
+                                                                                            ) : (
+                                                                                                <span className="font-medium">{prettyKey}:</span>
+                                                                                            )}{' '}
+                                                                                            <span className="text-muted-foreground">{value}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Sample Input Preview */}
+                                                                    <div className="pt-3 border-t">
+                                                                        <p className="text-xs text-muted-foreground mb-2">Sample Input:</p>
+                                                                        <p className="text-sm bg-muted p-3 rounded-lg font-mono">
+                                                                            {accessory.sampleInput}
                                                                         </p>
                                                                     </div>
-                                                                    <Button
-                                                                        onClick={() => handleRun(instrument, index)}
-                                                                        className="rounded-xl w-10 h-10 p-0 flex items-center justify-center bg-primary/40 hover:bg-primary text-primary hover:text-white transition-all duration-300 hover:scale-110"
-                                                                        variant="ghost"
-                                                                    >
-                                                                        <Play className="h-4 w-4" />
-                                                                    </Button>
                                                                 </div>
-
-                                                                {/* Generic Product Type Image */}
-                                                                {genericImages[instrument.productName] && (
-                                                                    <div className="flex justify-center my-4 rounded-lg overflow-hidden">
-                                                                        <img
-                                                                            src={genericImages[instrument.productName]}
-                                                                            alt={`Generic ${instrument.category}`}
-                                                                            className="w-48 h-48 object-contain rounded-lg mix-blend-multiply"
-                                                                            onError={(e) => {
-                                                                                e.currentTarget.style.display = 'none';
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Specifications */}
-                                                                {Object.keys(instrument.specifications).length > 0 && (
-                                                                    <div className="space-y-2">
-                                                                        <h4 className="font-medium text-sm text-muted-foreground">
-                                                                            Specifications:
-                                                                        </h4>
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                                            {Object.entries(instrument.specifications).map(([key, value]) => {
-                                                                                const prettyKey = prettifyKey(key);
-                                                                                // Check for description in fieldDescriptions (try multiple key formats)
-                                                                                const description =
-                                                                                    fieldDescriptions[key] ||
-                                                                                    fieldDescriptions[prettyKey] ||
-                                                                                    fieldDescriptions[key.toLowerCase()] ||
-                                                                                    fieldDescriptions[key.replace(/_/g, ' ')] ||
-                                                                                    null;
-
-                                                                                return (
-                                                                                    <div key={key} className="text-sm group break-words">
-                                                                                        {description ? (
-                                                                                            <Tooltip>
-                                                                                                <TooltipTrigger asChild>
-                                                                                                    <span className="font-medium cursor-help border-b border-dotted border-muted-foreground/50 hover:text-primary transition-colors">
-                                                                                                        {prettyKey}:
-                                                                                                    </span>
-                                                                                                </TooltipTrigger>
-                                                                                                <TooltipContent side="top" className="max-w-[300px] p-3 text-sm bg-popover/95 backdrop-blur-md border border-border shadow-xl">
-                                                                                                    <p>{description}</p>
-                                                                                                </TooltipContent>
-                                                                                            </Tooltip>
-                                                                                        ) : (
-                                                                                            <span className="font-medium">{prettyKey}:</span>
-                                                                                        )}{' '}
-                                                                                        <span className="text-muted-foreground">{value}</span>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Sample Input Preview */}
-                                                                <div className="pt-3 border-t">
-                                                                    <p className="text-xs text-muted-foreground mb-2">Sample Input:</p>
-                                                                    <p className="text-sm bg-muted p-3 rounded-lg font-mono">
-                                                                        {instrument.sampleInput}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </>
-                                            )}
-
-                                            {/* Accessories Section */}
-                                            {accessories.length > 0 && (
-                                                <>
-                                                    <h2 className="text-2xl font-bold mt-8">
-                                                        Accessories ({accessories.length})
-                                                    </h2>
-
-                                                    <div className="space-y-4 mt-4">
-                                                        {accessories.map((accessory, index) => (
-                                                            <div
-                                                                key={index}
-                                                                className="rounded-xl bg-gradient-to-br from-[#F5FAFC]/90 to-[#EAF6FB]/90 dark:from-slate-900/90 dark:to-slate-900/50 backdrop-blur-2xl border border-white/20 dark:border-slate-700/30 shadow-2xl transition-all duration-300 ease-in-out hover:scale-[1.02] p-6 space-y-4"
-                                                            >
-                                                                {/* Accessory Category (primary) and Name (secondary) - extract type from name if category is generic */}
-                                                                <div className="flex items-start justify-between">
-                                                                    <div className="space-y-1">
-                                                                        <h3 className="text-xl font-semibold">
-                                                                            {index + 1}. {(() => {
-                                                                                // If category is generic like "Accessories", extract the type from accessoryName
-                                                                                const cat = accessory.category || '';
-                                                                                const name = accessory.accessoryName || '';
-                                                                                const isGeneric = cat.toLowerCase() === 'accessories' || cat.toLowerCase() === 'accessory';
-                                                                                if (isGeneric && name) {
-                                                                                    // Extract first part before "for" (e.g., "Thermowell for X" -> "Thermowell")
-                                                                                    const parts = name.split(' for ');
-                                                                                    return parts[0] || name;
-                                                                                }
-                                                                                return cat || name;
-                                                                            })()}{accessory.quantity ? ` (${accessory.quantity})` : ''}
-                                                                        </h3>
-                                                                        <p className="text-muted-foreground">
-                                                                            {accessory.accessoryName}
-                                                                        </p>
-                                                                    </div>
-                                                                    <Button
-                                                                        onClick={() => handleRunAccessory(accessory, index)}
-                                                                        className="rounded-xl w-10 h-10 p-0 flex items-center justify-center bg-primary/40 hover:bg-primary text-primary hover:text-white transition-all duration-300 hover:scale-110"
-                                                                        variant="ghost"
-                                                                    >
-                                                                        <Play className="h-4 w-4" />
-                                                                    </Button>
-                                                                </div>
-
-                                                                {/* Generic Product Type Image */}
-                                                                {genericImages[accessory.accessoryName] && (
-                                                                    <div className="flex justify-center my-4 rounded-lg overflow-hidden">
-                                                                        <img
-                                                                            src={genericImages[accessory.accessoryName]}
-                                                                            alt={`Generic ${accessory.category}`}
-                                                                            className="w-48 h-48 object-contain rounded-lg mix-blend-multiply"
-                                                                            onError={(e) => {
-                                                                                e.currentTarget.style.display = 'none';
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Specifications */}
-                                                                {Object.keys(accessory.specifications).length > 0 && (
-                                                                    <div className="space-y-2">
-                                                                        <h4 className="font-medium text-sm text-muted-foreground">
-                                                                            Specifications:
-                                                                        </h4>
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                                            {Object.entries(accessory.specifications).map(([key, value]) => {
-                                                                                const prettyKey = prettifyKey(key);
-                                                                                // Check for description in fieldDescriptions
-                                                                                const description =
-                                                                                    fieldDescriptions[key] ||
-                                                                                    fieldDescriptions[prettyKey] ||
-                                                                                    fieldDescriptions[key.toLowerCase()] ||
-                                                                                    fieldDescriptions[key.replace(/_/g, ' ')] ||
-                                                                                    null;
-
-                                                                                return (
-                                                                                    <div key={key} className="text-sm group break-words">
-                                                                                        {description ? (
-                                                                                            <Tooltip>
-                                                                                                <TooltipTrigger asChild>
-                                                                                                    <span className="font-medium cursor-help border-b border-dotted border-muted-foreground/50 hover:text-primary transition-colors">
-                                                                                                        {prettyKey}:
-                                                                                                    </span>
-                                                                                                </TooltipTrigger>
-                                                                                                <TooltipContent side="top" className="max-w-[300px] p-3 text-sm bg-popover/95 backdrop-blur-md border border-border shadow-xl">
-                                                                                                    <p>{description}</p>
-                                                                                                </TooltipContent>
-                                                                                            </Tooltip>
-                                                                                        ) : (
-                                                                                            <span className="font-medium">{prettyKey}:</span>
-                                                                                        )}{' '}
-                                                                                        <span className="text-muted-foreground">{value}</span>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Sample Input Preview */}
-                                                                <div className="pt-3 border-t">
-                                                                    <p className="text-xs text-muted-foreground mb-2">Sample Input:</p>
-                                                                    <p className="text-sm bg-muted p-3 rounded-lg font-mono">
-                                                                        {accessory.sampleInput}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </>
-                                            )}
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
