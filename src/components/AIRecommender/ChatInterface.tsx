@@ -92,9 +92,9 @@ const MessageRow = memo(({ message, isHistory, renderVendorAnalysisStatus, forma
             />
           )}
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div
-            className={`break-words ${message.type === "user"
+            className={`break-words whitespace-pre-wrap ${message.type === "user"
               ? "glass-bubble-user"
               : "glass-bubble-assistant"
               }`}
@@ -149,8 +149,8 @@ const MessageRow = memo(({ message, isHistory, renderVendorAnalysisStatus, forma
 }, (prevProps, nextProps) => {
   // Custom comparison: only re-render if message ID or content changes
   return prevProps.message.id === nextProps.message.id &&
-         prevProps.message.content === nextProps.message.content &&
-         prevProps.isHistory === nextProps.isHistory;
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.isHistory === nextProps.isHistory;
 });
 
 const ChatInterface = ({
@@ -209,8 +209,8 @@ const ChatInterface = ({
 
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = "40px";
-      textareaRef.current.style.height = `${Math.max(40, textareaRef.current.scrollHeight)}px`;
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
     }
   }, [inputValue]);
 
@@ -220,7 +220,7 @@ const ChatInterface = ({
       .replace(/\_/g, " ")
       .replace(/-/g, " ")
       .replace(/\b\w/g, (l) => l.toUpperCase()),
-  []);
+    []);
   // ... existing code ...
   {
     showThinking && !isStreaming && (
@@ -512,7 +512,7 @@ const ChatInterface = ({
           Session: {searchSessionId.slice(-8)}
         </div>
       )} */}
-      <div className="flex-none py-2 border-b border-white/10 bg-transparent z-20 flex justify-center items-center">
+      <div className="flex-none py-0 border-b border-white/10 bg-transparent z-20 flex justify-center items-center">
         <div className="flex items-center gap-1">
           <div className="flex items-center justify-center">
             <img
@@ -521,8 +521,8 @@ const ChatInterface = ({
               className="w-16 h-16 object-contain"
             />
           </div>
-          <h1 className="text-3xl font-bold text-[#0f172a]">
-            EnGenie
+          <h1 className="text-3xl font-bold text-[#0f172a] inline-flex items-center gap-2 whitespace-nowrap">
+            EnGenie <span>* Search</span>
           </h1>
         </div>
       </div>
@@ -626,11 +626,16 @@ const ChatInterface = ({
               }}>
               <textarea
                 ref={textareaRef}
-                placeholder="Type your message here..."
+                placeholder="Ask about products, vendors, or specifications..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none px-4 py-2.5 pr-14 text-sm resize-none min-h-[40px] max-h-[200px] leading-relaxed flex items-center custom-no-scrollbar"
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${Math.min(target.scrollHeight, 150)}px`;
+                }}
+                className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none px-4 py-2.5 pr-20 text-sm resize-none min-h-[40px] max-h-[150px] leading-relaxed flex items-center custom-no-scrollbar"
                 style={{
                   fontSize: '16px',
                   fontFamily: 'inherit',

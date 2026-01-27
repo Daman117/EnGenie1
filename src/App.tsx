@@ -1,142 +1,203 @@
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import React, { Suspense, lazy } from "react";
 
-// Lazy-loaded page components for code splitting
-// Each page will be loaded only when navigated to, reducing initial bundle size
-const Index = lazy(() => import("./pages/Index"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const Landing = lazy(() => import("./pages/Landing"));
-const Login = lazy(() => import("./pages/Login"));
-const Signup = lazy(() => import("./pages/Signup"));
-const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
-const Project = lazy(() => import("./pages/Project"));
-const EnGenieChat = lazy(() => import("./pages/EnGenieChat"));
-const Uploading = lazy(() => import("./pages/Uploading"));
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Index from "./pages/Index";
+import Project from "./pages/Project";
+import ProductInfo from "./pages/ProductInfo";
+import Uploading from "./pages/Uploading";
+import AdminDashboard from "./pages/AdminDashboard";
+import NotFound from "./pages/NotFound";
 
-// Loading fallback component for Suspense
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-);
 
 const queryClient = new QueryClient();
 
-// Enhanced ProtectedRoute to allow optional admin-only access
+/* =========================
+   Protected Route
+   ========================= */
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
+const ProtectedRoute = ({
+  children,
+  requireAdmin = false,
+}: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
+  // ⛔ Prevent redirect until auth is resolved
   if (isLoading) {
-    // Render a loading state while auth info is loading
-    return <div>Loading...</div>;
+    return null; // or spinner
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 
   if (requireAdmin && user?.role !== "admin") {
-    // Redirect non-admins away from admin routes (you can customize the path)
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/search" replace />;
   }
 
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
+/* =========================
+   App
+   ========================= */
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+
+          <BrowserRouter>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
 
-              {/* Solution Routes (Nested & Grouped) */}
-              <Route path="/solution">
-                <Route
-                  index
-                  element={
-                    <ProtectedRoute>
-                      <Project />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="search"
-                  element={
-                    <ProtectedRoute>
-                      <Project />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="upload"
-                  element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <Uploading />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
-
-              {/* Chat Route (Top-level) */}
+              {/* Solution routes */}
               <Route
-                path="/chat"
+                path="/solution"
                 element={
                   <ProtectedRoute>
-                    <EnGenieChat />
+                    <Project />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/solution/search"
+                element={
+                  <ProtectedRoute>
+                    <Project />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/solution/search/upload"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Uploading />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/solution/search/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/solution/upload"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Uploading />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/solution/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminDashboard />
                   </ProtectedRoute>
                 }
               />
 
-              {/* Legacy Redirects or Aliases for backward compatibility */}
-              <Route path="/project" element={<Navigate to="/solution" replace />} />
-              <Route path="/engenie-chat" element={<Navigate to="/chat" replace />} />
-              <Route path="/upload" element={<Navigate to="/solution/upload" replace />} />
-
-              {/* Protected dashboard route */}
+              {/* Search routes */}
               <Route
-                path="/dashboard"
+                path="/search"
                 element={
                   <ProtectedRoute>
                     <Index />
                   </ProtectedRoute>
                 }
               />
-
-              {/* Protected admin route */}
               <Route
-                path="/admin"
+                path="/search/upload"
                 element={
-                  <ProtectedRoute requireAdmin={true}>
+                  <ProtectedRoute requireAdmin>
+                    <Uploading />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/search/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
                     <AdminDashboard />
                   </ProtectedRoute>
                 }
               />
 
-              {/* Catch-all for 404 */}
+              {/* Product Info routes */}
+              <Route
+                path="/product-info"
+                element={
+                  <ProtectedRoute>
+                    <ProductInfo />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/product-info/upload"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Uploading />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/product-info/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Legacy routes */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/upload"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Uploading />
+                  </ProtectedRoute>
+                }
+              />
+
+
+              {/* 404 */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </Suspense>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

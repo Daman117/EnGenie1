@@ -29,6 +29,7 @@ interface AuthContextType {
   login: (credentials: Omit<UserCredentials, 'email'>) => Promise<void>;
   signup: (credentials: UserCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  userSessionId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [userSessionId, setUserSessionId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const checkAuthStatus = async () => {
@@ -61,10 +63,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Ensure thread session exists for authenticated user
         const sessionManager = getSessionManager();
-        if (!sessionManager.getCurrentSession()) {
-          await sessionManager.getOrCreateSession(authData.user.username || authData.user.email);
+        let session = sessionManager.getCurrentSession();
+        if (!session) {
+          session = await sessionManager.getOrCreateSession(authData.user.username || authData.user.email);
           console.log('[AUTH] Thread session restored for authenticated user');
         }
+        setUserSessionId(session?.mainThreadId || null);
       }
     } catch (error) {
       setIsAuthenticated(false);
@@ -92,7 +96,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Create thread session for UI-managed thread system
       const sessionManager = getSessionManager();
-      await sessionManager.getOrCreateSession(response.user.username || response.user.email);
+      const session = await sessionManager.getOrCreateSession(response.user.username || response.user.email);
+      setUserSessionId(session.mainThreadId);
       console.log('[AUTH] Thread session created for user:', response.user.username);
 
       toast({
@@ -152,6 +157,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // End thread session (clears if not saved)
       const sessionManager = getSessionManager();
       sessionManager.endSession();
+      setUserSessionId(null);
       console.log('[AUTH] Thread session ended');
 
       toast({
@@ -178,6 +184,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     signup,
     logout,
+    userSessionId, // Exposed session ID
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

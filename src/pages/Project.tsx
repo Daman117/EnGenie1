@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, Play, Bot, LogOut, User, Upload, Save, FolderOpen, FileText, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Send, Loader2, Play, Bot, LogOut, User, Upload, Save, FolderOpen, FileText, X, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { BASE_URL } from '../components/AIRecommender/api';
 import { routeUserInputByIntent, validateRequirements } from '@/components/AIRecommender/api';
 
+import MainHeader from '@/components/MainHeader';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from 'react-markdown';
 import BouncingDots from '@/components/AIRecommender/BouncingDots';
@@ -39,7 +40,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ProfileEditDialog } from '@/components/ProfileEditDialog';
-import { MainHeader } from '@/components/MainHeader';
+
 
 interface IdentifiedInstrument {
     category: string;
@@ -389,11 +390,30 @@ const Project = () => {
 
     // Load state on mount
     useEffect(() => {
-        /* 
-        DISABLED: User requested that previously stored session should NOT open automatically.
-        Session should only be restored via explicit user interaction (e.g. Open Project button).
-        
         const loadState = async () => {
+            // Check if we need to clear state (triggered by New button)
+            if (sessionStorage.getItem('clear_project_state') === 'true') {
+                console.log('[PERSISTENCE] Clearing state as requested by New button');
+                sessionStorage.removeItem('clear_project_state');
+
+                // Clear IndexedDB
+                try {
+                    const db = await openProjectDB();
+                    const transaction = db.transaction(PROJECT_STORE_NAME, 'readwrite');
+                    const store = transaction.objectStore(PROJECT_STORE_NAME);
+                    await new Promise<void>((resolve, reject) => {
+                        const request = store.delete(PROJECT_STATE_KEY);
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => reject(request.error);
+                    });
+                    db.close();
+                } catch (e) {
+                    console.warn('Failed to clear DB', e);
+                }
+
+                return; // Don't restore anything
+            }
+
             const savedState = await loadStateFromProjectDB();
             if (savedState) {
                 console.log('[PERSISTENCE] Restoring state from IndexedDB...');
@@ -402,7 +422,10 @@ const Project = () => {
                 if (savedState.requirements) setRequirements(savedState.requirements);
                 if (savedState.instruments) setInstruments(savedState.instruments);
                 if (savedState.accessories) setAccessories(savedState.accessories);
-                if (savedState.showResults) setShowResults(savedState.showResults);
+                // Simplify showResults - if we have items, show results
+                if (savedState.showResults || (savedState.instruments && savedState.instruments.length > 0)) {
+                    setShowResults(true);
+                }
                 if (savedState.activeTab) setActiveTab(savedState.activeTab);
                 if (savedState.searchTabs) setSearchTabs(savedState.searchTabs);
                 if (savedState.projectName) setProjectName(savedState.projectName);
@@ -436,8 +459,7 @@ const Project = () => {
             }
         };
 
-        loadState(); 
-        */
+        loadState();
     }, []); // Run once on mount
 
     // Save state on unload
@@ -1083,7 +1105,12 @@ const Project = () => {
             nameToUse = capitalizeFirstLetter(detectedProductType);
         }
 
-        const effectiveProjectName = (nameToUse || '').trim() || 'Project';
+        let baseName = (nameToUse || '').trim() || 'Project';
+        // Strip existing screen suffixes to avoid accumulation or wrong context
+        baseName = baseName.replace(/\s*\((Search|Solution|ProductInfo)\)$/i, '').trim();
+
+        // Enforce (Solution) suffix for projects saved from this screen
+        const effectiveProjectName = `${baseName} (Solution)`;
 
         try {
             // Collect all current project data including chat states
@@ -1573,7 +1600,15 @@ const Project = () => {
                             inputValue: tabHistory.inputValue || '',
                             advancedParameters: tabHistory.advancedParameters || null,
                             selectedAdvancedParams: tabHistory.selectedAdvancedParams || {},
-                            fieldDescriptions: tabHistory.fieldDescriptions || (project.fieldDescriptions || project.field_descriptions) || {}
+                            fieldDescriptions: tabHistory.fieldDescriptions || (project.fieldDescriptions || project.field_descriptions) || {},
+                            dockingState: tabHistory.dockingState || { left: true, right: true },
+                            scrollPositions: tabHistory.scrollPositions || { left: 0, center: 0, right: 0 },
+                            productSearchWorkflow: tabHistory.productSearchWorkflow || {
+                                threadId: null,
+                                currentPhase: null,
+                                awaitingUserInput: false,
+                                missingFields: []
+                            }
                         };
 
                         console.log(`Restored state for tab ${tab.id}:`, restoredTabStates[tab.id]);
@@ -1818,107 +1853,10 @@ const Project = () => {
         <div className="min-h-screen w-full app-glass-gradient flex flex-col">
             {/* Header is now MainHeader */}
             <MainHeader
-                rightContent={
-                    <>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleSaveProject()}
-                                    className="rounded-lg p-2 hover:bg-transparent transition-transform hover:scale-[1.2]"
-                                >
-                                    <Save className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Save</p></TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={handleNewProject} className="rounded-lg p-2 hover:bg-transparent transition-transform hover:scale-[1.2]">
-                                    <FileText className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>New</p></TooltipContent>
-                        </Tooltip>
-
-                        <ProjectListDialog
-                            open={isProjectListOpen}
-                            onOpenChange={setIsProjectListOpen}
-                            onProjectSelect={handleOpenProject}
-                            onProjectDelete={handleProjectDelete}
-                        >
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="rounded-lg p-2 hover:bg-transparent transition-transform hover:scale-[1.2]"
-                                        onClick={() => setIsProjectListOpen(true)}
-                                    >
-                                        <FolderOpen className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Open</p></TooltipContent>
-                            </Tooltip>
-                        </ProjectListDialog>
-
-                        {/* Profile */}
-                        <DropdownMenu>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className="text-sm font-semibold text-muted-foreground p-2 hover:bg-transparent transition-transform hover:scale-[1.2]"
-                                        >
-                                            <div className="w-7 h-7 rounded-full bg-[#0F6CBD] flex items-center justify-center text-white font-bold">
-                                                {profileButtonLabel.charAt(0)}
-                                            </div>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Profile</p></TooltipContent>
-                            </Tooltip>
-                            <DropdownMenuContent
-                                className="w-56 mt-1 rounded-xl bg-gradient-to-br from-[#F5FAFC]/90 to-[#EAF6FB]/90 dark:from-slate-900/90 dark:to-slate-900/50 backdrop-blur-2xl border border-white/20 dark:border-slate-700/30 shadow-2xl"
-                                align="end"
-                            >
-                                <DropdownMenuLabel className="p-0 font-normal">
-                                    <button
-                                        onClick={() => setIsProfileEditOpen(true)}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 transition-colors text-sm font-semibold rounded-md text-left outline-none cursor-pointer"
-                                        title="Click to edit profile"
-                                    >
-                                        <User className="w-4 h-4" />
-                                        {profileFullName}
-                                    </button>
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-
-                                {user?.role?.toLowerCase() === "admin" && (
-                                    <>
-                                        <DropdownMenuItem className="flex gap-2 focus:bg-transparent cursor-pointer focus:text-slate-900 dark:focus:text-slate-100" onClick={() => navigate("/admin")}>
-                                            <Bot className="h-4 w-4" />
-                                            Approve Sign Ups
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="flex gap-2 focus:bg-transparent cursor-pointer focus:text-slate-900 dark:focus:text-slate-100" onClick={() => navigate("/upload")}>
-                                            <Upload className="h-4 w-4" />
-                                            Upload
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                    </>
-                                )}
-
-                                <DropdownMenuItem className="flex gap-2 focus:bg-transparent cursor-pointer focus:text-slate-900 dark:focus:text-slate-100" onClick={logout}>
-                                    <LogOut className="h-4 w-4" />
-                                    Logout
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </>
-                }
+                onSave={() => handleSaveProject()}
+                onNew={handleNewProject}
+                onProjectSelect={handleOpenProject}
+                onProjectDelete={handleProjectDelete}
             >
                 {searchTabs.length > 0 && (
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -2135,7 +2073,7 @@ const Project = () => {
                                                     {!showResults && (
                                                         <div className="text-center space-y-4 mb-8">
                                                             <h2 className="text-3xl font-normal text-muted-foreground">
-                                                                Welcome, <span className="text-primary font-bold text-4xl">{user?.firstName || user?.username || 'User'}</span>! what are your requirements
+                                                                Welcome, {user?.firstName || user?.username || 'User'}! what are your requirements
                                                             </h2>
                                                         </div>
                                                     )}
@@ -2166,7 +2104,7 @@ const Project = () => {
                                             {/* Input Form */}
                                             <form onSubmit={handleSubmit}>
                                                 <div className="relative group">
-                                                    <div className={`relative w-full rounded-[26px] transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-transparent hover:scale-[1.02] flex flex-col`}
+                                                    <div className={`relative w-full rounded-[26px] transition-all duration-300 focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-transparent hover:scale-[1.01] flex flex-col`}
                                                         style={{
                                                             boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
                                                             WebkitBackdropFilter: 'blur(12px)',
@@ -2272,8 +2210,8 @@ const Project = () => {
                                                         className="w-16 h-16 object-contain"
                                                     />
                                                 </div>
-                                                <h1 className="text-3xl font-bold text-[#0f172a]">
-                                                    EnGenie
+                                                <h1 className="text-3xl font-bold text-[#0f172a] inline-flex items-center gap-2 whitespace-nowrap">
+                                                    EnGenie <span>* Solution</span>
                                                 </h1>
                                             </div>
                                         </div>
@@ -2327,7 +2265,7 @@ const Project = () => {
                                                                 value={requirements}
                                                                 onChange={(e) => setRequirements(e.target.value)}
                                                                 onKeyDown={handleKeyPress}
-                                                                className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none px-4 py-2.5 pr-20 text-sm resize-none min-h-[40px] max-h-[200px] leading-relaxed flex items-center custom-no-scrollbar"
+                                                                className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none px-4 py-2.5 pr-20 text-sm resize-none min-h-[40px] max-h-[150px] leading-relaxed flex items-center custom-no-scrollbar"
                                                                 style={{
                                                                     fontSize: '16px',
                                                                     fontFamily: 'inherit',
@@ -2681,6 +2619,9 @@ const Project = () => {
                                 savedSelectedAdvancedParams={savedState?.selectedAdvancedParams}
                                 savedFieldDescriptions={savedState?.fieldDescriptions}
                                 savedPricingData={savedState?.pricingData}
+                                savedDockingState={savedState?.dockingState}
+                                savedScrollPositions={savedState?.scrollPositions}
+                                savedProductSearchWorkflow={savedState?.productSearchWorkflow}
                             />
                         </div>
                     );

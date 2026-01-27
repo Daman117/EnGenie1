@@ -42,6 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import MainHeader from "@/components/MainHeader";
 
 type ConversationStep = WorkflowStep;
 
@@ -90,6 +91,14 @@ interface AIRecommenderProps {
     selectedAdvancedParams: { [key: string]: string };
     fieldDescriptions: Record<string, string>;
     pricingData: Record<string, any>;
+    dockingState: { left: boolean; right: boolean };
+    scrollPositions: { left: number; center: number; right: number };
+    productSearchWorkflow: {
+      threadId: string | null;
+      currentPhase: string | null;
+      awaitingUserInput: boolean;
+      missingFields: string[];
+    };
   }) => void;
   // Props for restoring saved state
   savedMessages?: ChatMessage[];
@@ -105,6 +114,16 @@ interface AIRecommenderProps {
   savedSelectedAdvancedParams?: { [key: string]: string };
   savedFieldDescriptions?: Record<string, string>;
   savedPricingData?: Record<string, any>;
+  savedSearchInstanceId?: string;
+  savedDockingState?: { left: boolean; right: boolean };
+  savedScrollPositions?: { left: number; center: number; right: number };
+  savedProductSearchWorkflow?: {
+    threadId: string | null;
+    currentPhase: string | null;
+    awaitingUserInput: boolean;
+    missingFields: string[];
+  };
+  onSave?: () => void;
 }
 
 const AIRecommender = ({
@@ -127,7 +146,13 @@ const AIRecommender = ({
   savedAdvancedParameters,
   savedSelectedAdvancedParams,
   savedFieldDescriptions,
-  savedPricingData
+
+  savedPricingData,
+  savedSearchInstanceId,
+  savedDockingState,
+  savedScrollPositions,
+  savedProductSearchWorkflow,
+  onSave
 }: AIRecommenderProps) => {
   const { toast } = useToast();
   const { logout } = useAuth();
@@ -184,16 +209,16 @@ const AIRecommender = ({
     awaitingUserInput: boolean;
     missingFields: string[];
   }>({
-    threadId: null,
-    currentPhase: null,
-    awaitingUserInput: false,
-    missingFields: []
+    threadId: savedProductSearchWorkflow?.threadId || null,
+    currentPhase: savedProductSearchWorkflow?.currentPhase || null,
+    awaitingUserInput: savedProductSearchWorkflow?.awaitingUserInput || false,
+    missingFields: savedProductSearchWorkflow?.missingFields || []
   });
 
   // Layout states
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isDocked, setIsDocked] = useState(true);
-  const [isRightDocked, setIsRightDocked] = useState(true);
+  const [isDocked, setIsDocked] = useState(savedDockingState?.left ?? true);
+  const [isRightDocked, setIsRightDocked] = useState(savedDockingState?.right ?? true);
   const DEFAULT_DOCKED_WIDTH = 0;
   const DEFAULT_EXPANDED_WIDTH = 16;
   const DEFAULT_RIGHT_DOCKED_WIDTH = 0;
@@ -321,6 +346,11 @@ const AIRecommender = ({
         setPricingData(savedPricingData);
       }
 
+      if (savedProductSearchWorkflow) {
+        console.log(`[${searchSessionId}] Restoring product search workflow state`);
+        setProductSearchWorkflow(savedProductSearchWorkflow);
+      }
+
       // After restoration, trigger state notification to parent
       if (onStateChange) {
         console.log(`[${searchSessionId}] Notifying parent of restored state`);
@@ -339,7 +369,15 @@ const AIRecommender = ({
           advancedParameters: savedAdvancedParameters || null,
           selectedAdvancedParams: savedSelectedAdvancedParams || {},
           fieldDescriptions: savedFieldDescriptions || {},
-          pricingData: savedPricingData || {}
+          pricingData: savedPricingData || {},
+          dockingState: savedDockingState || { left: true, right: true },
+          scrollPositions: savedScrollPositions || { left: 0, center: 0, right: 0 },
+          productSearchWorkflow: savedProductSearchWorkflow || {
+            threadId: null,
+            currentPhase: null,
+            awaitingUserInput: false,
+            missingFields: []
+          }
         });
       }
     } else {
@@ -367,10 +405,13 @@ const AIRecommender = ({
         advancedParameters,
         selectedAdvancedParams,
         fieldDescriptions,
-        pricingData
+        pricingData,
+        dockingState: { left: isDocked, right: isRightDocked },
+        scrollPositions: { left: 0, center: 0, right: 0 }, // Placeholder until scroll tracking is implemented
+        productSearchWorkflow
       });
     }
-  }, [state.messages, collectedData, currentStep, state.analysisResult, searchSessionId, state.requirementSchema, state.validationResult, state.currentProductType, state.inputValue, advancedParameters, selectedAdvancedParams, fieldDescriptions, pricingData]);
+  }, [state.messages, collectedData, currentStep, state.analysisResult, searchSessionId, state.requirementSchema, state.validationResult, state.currentProductType, state.inputValue, advancedParameters, selectedAdvancedParams, fieldDescriptions, pricingData, isDocked, isRightDocked, productSearchWorkflow]);
 
   // --- Resize functionality ---
   const handleMouseDown = useCallback((e: React.MouseEvent, handle: "left" | "right") => {
@@ -2090,9 +2131,12 @@ const AIRecommender = ({
   return (
 
     <div
-      className={`flex flex-col ${fillParent ? 'h-full' : 'h-screen'} text-foreground`}
+      className={`flex flex-col ${fillParent ? 'h-full' : 'h-screen'} text-foreground app-glass-gradient !min-h-0 ${fillParent ? '' : 'pt-24'}`}
       ref={containerRef}
     >
+      {/* MAIN HEADER - Only show when not embedded in another page */}
+      {!fillParent && <MainHeader onSave={onSave} />}
+
       {/* Left corner dock button - positioned below header */}
       <Button
         variant="ghost"

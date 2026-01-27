@@ -1526,41 +1526,31 @@ export const routeUserInputByIntent = async (
       }
     }
 
-    // ROUTE 4: Knowledge Question - Suggest EnGenie Chat (don't auto-route)
+    // ROUTE 4: Knowledge Question - Answer directly using EnGenie Chat logic (stay on page)
     if (intent === 'knowledgeQuestion') {
-      console.log('[INTENT_ROUTER] 💡 Detected knowledge question - suggesting EnGenie Chat');
+      console.log('[INTENT_ROUTER] 💡 Detected knowledge question - answering directly');
 
-      // Check if there's a workflow suggestion from the backend
-      const suggestion = intentResult.suggestWorkflow;
-
-      if (suggestion) {
-        // Return suggestion for UI to display as clickable option
+      try {
+        const chatResult = await callEnGenieChat(userInput, sessionId);
         return {
           intent: 'knowledgeQuestion',
-          responseType: 'workflowSuggestion',
-          message: `This looks like a question I can help with. Click below to open **${suggestion.name}** for detailed answers.`,
+          responseType: 'question',
+          message: chatResult.response_text || "I can help answer your questions about industrial instrumentation. What would you like to know?",
           instruments: currentInstruments || [],
           accessories: currentAccessories || [],
           isSolution: false,
-          suggestWorkflow: suggestion,  // Frontend will display this as clickable
+        };
+      } catch (e) {
+        // Fallback
+        return {
+          intent: 'knowledgeQuestion',
+          responseType: 'question',
+          message: "I'm here to help with industrial instrumentation questions. How can I assist you?",
+          instruments: currentInstruments || [],
+          accessories: currentAccessories || [],
+          isSolution: false,
         };
       }
-
-      // Fallback: if no suggestion, still don't auto-route
-      return {
-        intent: 'knowledgeQuestion',
-        responseType: 'workflowSuggestion',
-        message: 'This looks like a product or knowledge question. Click **EnGenie Chat** to get detailed answers.',
-        instruments: currentInstruments || [],
-        accessories: currentAccessories || [],
-        isSolution: false,
-        suggestWorkflow: {
-          name: 'EnGenie Chat',
-          workflow_id: 'engenie_chat',
-          description: 'Get answers about products, standards, and industrial topics',
-          action: 'openEnGenieChat'
-        },
-      };
     }
 
     // ROUTE 5: Workflow (continuing existing workflow)
@@ -2288,4 +2278,109 @@ export const resumeProductSearch = async (
       error: error.response?.data?.error || error.message || "Failed to resume workflow"
     };
   }
+};
+
+// ====================================================================
+// === LEGACY ROUTING API (Needed for ProductInfo page) ===
+// ====================================================================
+
+/**
+ * Input category types returned by the route classifier
+ */
+export type InputCategory =
+  | "empty_gibberish"
+  | "greeting"
+  | "farewell"
+  | "gratitude"
+  | "confirmation"
+  | "question_help"
+  | "chitchat"
+  | "out_of_scope"
+  | "complaint"
+  | "question_general"
+  | "route_solution"
+  | "route_product_info"
+  | "route_search"
+  | "error"
+  | "unknown";
+
+/**
+ * Route classification result interface
+ */
+export interface RouteClassificationResult {
+  category: InputCategory;
+  targetPage: "solution" | "product_info" | "search";
+  currentPage: string;
+  requiresConfirmation: boolean;
+  requiresRouting: boolean;
+  directResponse: string;
+  confirmationMessage: string;
+  openingMessage: string;
+  declineMessage: string;
+  popupBlockedMessage: string;
+  originalQuery: string;
+  reasoning: string;
+}
+
+/**
+ * Classifies user input and determines the best routing page.
+ * Renamed from classifyRoute to avoid conflict with EnGenie1's classifyRoute.
+ */
+export const classifyRouteForProductInfo = async (
+  userInput: string,
+  currentPage: "solution" | "product_info" | "search",
+  searchInstanceId?: string,
+  userSessionId?: string | null
+): Promise<RouteClassificationResult> => {
+  // MOCK IMPLEMENTATION - Backend endpoint missing
+  console.log('[API] Mocking route classification (backend endpoint missing)');
+  return Promise.resolve({
+    category: "question_general", // Default to general question so it stays on page
+    targetPage: currentPage,
+    currentPage: currentPage,
+    requiresConfirmation: false,
+    requiresRouting: false,
+    directResponse: "",
+    confirmationMessage: "",
+    openingMessage: "",
+    declineMessage: "",
+    popupBlockedMessage: "",
+    originalQuery: userInput,
+    reasoning: "Mocked response - backend missing"
+  });
+};
+
+/**
+ * Route confirmation result interface
+ */
+export interface RouteConfirmationResult {
+  action: "confirm" | "decline" | "unclear";
+  message: string;
+  proceedWithRouting: boolean;
+  targetPage: string;
+  originalQuery: string;
+  reasoning: string;
+}
+
+/**
+ * Classifies user's response to a routing confirmation prompt using LLM.
+ */
+export const confirmRouteResponse = async (
+  userInput: string,
+  currentPage: "solution" | "product_info" | "search",
+  targetPage: string,
+  originalQuery: string,
+  searchInstanceId?: string,
+  userSessionId?: string | null
+): Promise<RouteConfirmationResult> => {
+  // MOCK IMPLEMENTATION - Backend endpoint missing
+  console.log('[API] Mocking route confirmation (backend endpoint missing)');
+  return Promise.resolve({
+    action: "unclear", // Default to unclear so it doesn't do anything drastic
+    message: "",
+    proceedWithRouting: false,
+    targetPage: currentPage,
+    originalQuery: originalQuery,
+    reasoning: "Mocked confirmation - backend missing"
+  });
 };

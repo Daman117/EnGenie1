@@ -19,7 +19,7 @@ const Login = () => {
 
     try {
       await login({ username: username.trim(), password });
-      navigate('/project');
+      navigate('/solution');
     } catch (error) {
       // handled in AuthContext
     }
