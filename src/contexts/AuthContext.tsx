@@ -86,9 +86,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await checkAuthStatus();
   };
 
+  const clearClientSessionData = async () => {
+    try {
+      // Clear persistent state for search/project pages
+      localStorage.removeItem('search_state_backup');
+      localStorage.removeItem('project_page_state_backup');
+      // Note: We deliberately preserve docking state preferences
+
+      // Helper to delete DB
+      const deleteDB = (dbName: string) => {
+        return new Promise<void>((resolve) => {
+          const req = indexedDB.deleteDatabase(dbName);
+          req.onsuccess = () => {
+            console.log(`[AUTH] Deleted DB: ${dbName}`);
+            resolve();
+          };
+          req.onerror = () => {
+            console.warn(`[AUTH] Failed to delete DB: ${dbName}`);
+            resolve();
+          };
+          req.onblocked = () => {
+            console.warn(`[AUTH] DB Delete blocked: ${dbName}`);
+            resolve();
+          }
+        });
+      };
+
+      await Promise.all([
+        deleteDB('search_db'),
+        deleteDB('project_page_db')
+      ]);
+    } catch (e) {
+      console.warn('[AUTH] Error clearing local state:', e);
+    }
+  };
+
   const login = async (credentials: Omit<UserCredentials, 'email'>) => {
     try {
       setIsLoading(true);
+
+      // Clear any previous session data before starting new session
+      await clearClientSessionData();
+
       const response = await apiLogin(credentials);
       setIsAuthenticated(true);
       // Set the user with the new role and status
@@ -159,6 +198,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       sessionManager.endSession();
       setUserSessionId(null);
       console.log('[AUTH] Thread session ended');
+
+      // Clear client side data on logout as well
+      await clearClientSessionData();
 
       toast({
         title: "Success",
